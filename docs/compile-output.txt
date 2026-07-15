@@ -1,0 +1,12 @@
+$ compact compile src/moonlight.compact src/managed/moonlight
+
+Compiling 5 circuits:
+  circuit "acceptOrder" (k=13, rows=4189)
+  circuit "cancelOrder" (k=13, rows=4186)
+  circuit "completeOrder" (k=13, rows=4186)
+  circuit "postOrder" (k=14, rows=9059)
+  circuit "verifyBudget" (k=13, rows=4648)
+Overall progress [====================] 5/5
+
+Toolchain: compact 0.5.1 / compiler 0.31.1 (aarch64-darwin)
+Output: contract/src/managed/moonlight/ (contract API, prover/verifier keys, zkir)

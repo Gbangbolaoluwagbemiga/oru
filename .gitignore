@@ -1,0 +1,26 @@
+# Node.js
+node_modules/
+dist/
+*.tsbuildinfo
+npm-debug.log*
+
+# Logs
+logs/
+*.log
+
+# Compact compiler output (regenerate with `npm run compact`)
+contract/src/managed/
+
+# Local state / secrets
+.env
+*.env
+!*.env.example
+*.seed
+midnight-level-db/
+
+# Test reports / coverage
+coverage/
+**/reports/
+
+.DS_Store
+.idea/

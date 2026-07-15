@@ -2,9 +2,12 @@
 // Copyright (C) Midnight Foundation
 
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { setNetworkId } from '@midnight-ntwrk/midnight-js/network-id';
 
-export const currentDir = path.resolve(new URL(import.meta.url).pathname, '..');
+// fileURLToPath (not URL.pathname) so paths with spaces don't stay
+// percent-encoded — %20 paths silently create shadow directories.
+export const currentDir = path.resolve(fileURLToPath(import.meta.url), '..');
 
 export const contractConfig = {
   privateStateStoreName: 'moonlight-private-state',

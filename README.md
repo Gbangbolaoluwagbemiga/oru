@@ -7,6 +7,10 @@ Freelance platforms today leak everything: what you charge, who you work for, an
 > Built for the **Monthly Moonshots on Midnight** builder program.
 > Current level: **Level 1 — New Moon** 🌑
 
+## The idea
+
+Moonlight is a freelance marketplace where the deal is on-chain but the details are not. Clients post work orders whose title, description, and budget exist on the public ledger only as cryptographic commitments; freelancers accept and deliver under pseudonymous identities derived in-circuit from local secret keys, so no wallet address is ever linked to an engagement. Rates, client lists, and work history — the data that today's freelance platforms expose to everyone including competitors — stay private, yet remain *provable*: any party can selectively disclose a committed value (like a budget) with a zero-knowledge proof when a dispute or an audit demands it. Later phases add private escrow and privately-computed reputation, giving freelancers in markets like Nigeria a way to build verifiable track records without publishing their income to the world.
+
 ## Privacy model
 
 The Level 1 contract ([contract/src/moonlight.compact](contract/src/moonlight.compact)) is a private work-order registry written in [Compact](https://docs.midnight.network/develop/reference/compact/), Midnight's zero-knowledge circuit language:
@@ -23,6 +27,14 @@ Key mechanics:
 - **Inputs are private by default.** Every circuit argument is witness data; only values explicitly wrapped in `disclose()` and written to the ledger become public.
 - **Authorization without identification.** "Only the client can complete an order" is enforced by re-deriving the identity hash from the local secret key *inside the circuit* — no signature, no address, no doxxing.
 - **Selective disclosure.** `verifyBudget` proves a claimed budget matches the on-chain commitment without the ledger ever storing the amount.
+
+### Public state vs private witness
+
+The contract draws the line explicitly:
+
+- **Public ledger state** — everything declared with `export ledger` in [moonlight.compact](contract/src/moonlight.compact): the order counter, per-order statuses, and the *commitments* (hashes) for details, budgets, and identities. This is replicated on every node and visible to anyone.
+- **Private witness** — the `witness localSecretKey(): Bytes<32>` declaration. A witness is data supplied by the caller's own machine at proof time (implemented in [witnesses.ts](contract/src/witnesses.ts)); it is used *inside* the ZK circuit but never leaves the device. Moonlight derives your marketplace identity from it in-circuit (`identity()`), which is how "only the client can complete this order" is enforced without revealing who the client is.
+- **The `disclose()` boundary** — circuit parameters are also private by default. The compiler *refuses to compile* any flow where witness-derived data reaches the ledger without an explicit `disclose()`, so every disclosure in Moonlight is a deliberate, reviewable decision — see the `disclose(...)` calls in `postOrder` and friends.
 
 ## Repository layout
 

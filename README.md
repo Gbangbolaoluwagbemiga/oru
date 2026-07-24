@@ -135,7 +135,7 @@ vercel link          # first time only
 vercel --prod
 ```
 
-Or on Netlify, point the build command at `npm run build --workspace @oru/contract && npm run build --workspace web` with publish directory `web/dist`. Either way, the deployed site must connect to the Preprod contract address above — set `VITE_ORU_CONTRACT_ADDRESS` as an environment variable on the hosting platform if you deploy a fork with a different address.
+Or on Netlify, point the build command at `npm run build --workspace @oru/contract && npm run build --workspace @oru/web` with publish directory `web/dist`. Either way, the deployed site must connect to the Preprod contract address above — set `VITE_ORU_CONTRACT_ADDRESS` as an environment variable on the hosting platform if you deploy a fork with a different address.
 
 > **Note — proof server required.** Midnight generates ZK proofs against a **local proof server**, so anyone running the live demo (or a judge reproducing it) must have one on `localhost:6300`. Start it with `docker run -d -p 6300:6300 midnightntwrk/proof-server:8.0.3 'midnight-proof-server -v'` (Lace surfaces the same requirement in-wallet). Override the URL with `VITE_PROOF_SERVER_URL` if you host one elsewhere. Fees are paid in **DUST**, which your wallet only generates after you **designate NIGHT** for DUST generation in Lace.
 

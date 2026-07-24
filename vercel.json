@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build --workspace @oru/contract && npm run build --workspace web",
+  "buildCommand": "npm run build --workspace @oru/contract && npm run build --workspace @oru/web",
   "outputDirectory": "web/dist",
   "installCommand": "npm install --include=dev",
   "framework": null,

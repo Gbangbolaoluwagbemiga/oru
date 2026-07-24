@@ -11,7 +11,7 @@ Status against the Rise In requirements:
 | Contract deployed to Preprod with a verifiable address | ✅ Preprod: `43417527ae01b89855ed4befa4fc3a064bcb0f182d142cf3c15c00ad50051fa2` (unchanged from Level 1) |
 | Minimum 8 meaningful commits | ⏳ see `git log --oneline` after this work is committed |
 | Public GitHub repository with README | ✅ this repo, README updated with Level 2 sections |
-| Live demo link (Vercel, Netlify, or similar) | ⏳ deploy with `vercel --prod` (see README ["Deploy the Frontend"](../README.md#deploy-the-frontend)), then paste the URL into README's ["Live Demo"](../README.md#live-demo) section |
+| Live demo link (Vercel, Netlify, or similar) | ✅ [oru-web-beta.vercel.app](https://oru-web-beta.vercel.app/) |
 | Deployed Preprod contract address (verifiable on-chain) | ✅ same as above |
 | Demo video: wallet connect + a successful circuit call | ⏳ record per the checklist below |
 | README documenting the privacy claim | ✅ ["Privacy Claim"](../README.md#privacy-claim) |

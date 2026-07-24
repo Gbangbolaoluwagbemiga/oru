@@ -6,7 +6,9 @@ Built for the **Monthly Moonshots on Midnight** builder program. Current level: 
 
 ## Live Demo
 
-[PLACEHOLDER — add the deployed Vercel/Netlify URL here]
+**[oru-web-beta.vercel.app](https://oru-web-beta.vercel.app/)**
+
+Requires a Lace wallet set to Preprod and a local Midnight proof server on `localhost:6300` — see the note in ["Deploy the Frontend"](#deploy-the-frontend).
 
 ## Contract Address
 

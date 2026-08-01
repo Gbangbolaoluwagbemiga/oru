@@ -64,13 +64,15 @@ export class OruSimulator {
   public postOrder(
     detailsHash: Uint8Array,
     budget: bigint,
-    budgetSalt: Uint8Array
+    budgetSalt: Uint8Array,
+    requireVerified: boolean = false
   ): bigint {
     const results = this.contract.impureCircuits.postOrder(
       this.circuitContext,
       detailsHash,
       budget,
-      budgetSalt
+      budgetSalt,
+      requireVerified
     );
     this.circuitContext = results.context;
     return results.result;
@@ -106,5 +108,11 @@ export class OruSimulator {
     );
     this.circuitContext = results.context;
     return results.result;
+  }
+
+  public joinAllowlist(): void {
+    this.circuitContext = this.contract.impureCircuits.joinAllowlist(
+      this.circuitContext
+    ).context;
   }
 }

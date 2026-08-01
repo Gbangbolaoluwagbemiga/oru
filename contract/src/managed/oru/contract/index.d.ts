@@ -10,9 +10,11 @@ export type ImpureCircuits<PS> = {
   postOrder(context: __compactRuntime.CircuitContext<PS>,
             detailsHash_0: Uint8Array,
             budget_0: bigint,
-            budgetSalt_0: Uint8Array): __compactRuntime.CircuitResults<PS, bigint>;
+            budgetSalt_0: Uint8Array,
+            requireVerified_0: boolean): __compactRuntime.CircuitResults<PS, bigint>;
   acceptOrder(context: __compactRuntime.CircuitContext<PS>, orderId_0: bigint): __compactRuntime.CircuitResults<PS, []>;
   completeOrder(context: __compactRuntime.CircuitContext<PS>, orderId_0: bigint): __compactRuntime.CircuitResults<PS, []>;
+  joinAllowlist(context: __compactRuntime.CircuitContext<PS>): __compactRuntime.CircuitResults<PS, []>;
   cancelOrder(context: __compactRuntime.CircuitContext<PS>, orderId_0: bigint): __compactRuntime.CircuitResults<PS, []>;
   verifyBudget(context: __compactRuntime.CircuitContext<PS>,
                orderId_0: bigint,
@@ -24,9 +26,11 @@ export type ProvableCircuits<PS> = {
   postOrder(context: __compactRuntime.CircuitContext<PS>,
             detailsHash_0: Uint8Array,
             budget_0: bigint,
-            budgetSalt_0: Uint8Array): __compactRuntime.CircuitResults<PS, bigint>;
+            budgetSalt_0: Uint8Array,
+            requireVerified_0: boolean): __compactRuntime.CircuitResults<PS, bigint>;
   acceptOrder(context: __compactRuntime.CircuitContext<PS>, orderId_0: bigint): __compactRuntime.CircuitResults<PS, []>;
   completeOrder(context: __compactRuntime.CircuitContext<PS>, orderId_0: bigint): __compactRuntime.CircuitResults<PS, []>;
+  joinAllowlist(context: __compactRuntime.CircuitContext<PS>): __compactRuntime.CircuitResults<PS, []>;
   cancelOrder(context: __compactRuntime.CircuitContext<PS>, orderId_0: bigint): __compactRuntime.CircuitResults<PS, []>;
   verifyBudget(context: __compactRuntime.CircuitContext<PS>,
                orderId_0: bigint,
@@ -41,9 +45,11 @@ export type Circuits<PS> = {
   postOrder(context: __compactRuntime.CircuitContext<PS>,
             detailsHash_0: Uint8Array,
             budget_0: bigint,
-            budgetSalt_0: Uint8Array): __compactRuntime.CircuitResults<PS, bigint>;
+            budgetSalt_0: Uint8Array,
+            requireVerified_0: boolean): __compactRuntime.CircuitResults<PS, bigint>;
   acceptOrder(context: __compactRuntime.CircuitContext<PS>, orderId_0: bigint): __compactRuntime.CircuitResults<PS, []>;
   completeOrder(context: __compactRuntime.CircuitContext<PS>, orderId_0: bigint): __compactRuntime.CircuitResults<PS, []>;
+  joinAllowlist(context: __compactRuntime.CircuitContext<PS>): __compactRuntime.CircuitResults<PS, []>;
   cancelOrder(context: __compactRuntime.CircuitContext<PS>, orderId_0: bigint): __compactRuntime.CircuitResults<PS, []>;
   verifyBudget(context: __compactRuntime.CircuitContext<PS>,
                orderId_0: bigint,
@@ -87,6 +93,26 @@ export type Ledger = {
     member(key_0: bigint): boolean;
     lookup(key_0: bigint): Uint8Array;
     [Symbol.iterator](): Iterator<[bigint, Uint8Array]>
+  };
+  verifiedOnly: {
+    isEmpty(): boolean;
+    size(): bigint;
+    member(key_0: bigint): boolean;
+    lookup(key_0: bigint): boolean;
+    [Symbol.iterator](): Iterator<[bigint, boolean]>
+  };
+  completedCounts: {
+    isEmpty(): boolean;
+    size(): bigint;
+    member(key_0: Uint8Array): boolean;
+    lookup(key_0: Uint8Array): bigint;
+    [Symbol.iterator](): Iterator<[Uint8Array, bigint]>
+  };
+  verifiedFreelancers: {
+    isEmpty(): boolean;
+    size(): bigint;
+    member(elem_0: Uint8Array): boolean;
+    [Symbol.iterator](): Iterator<Uint8Array>
   };
 }
 

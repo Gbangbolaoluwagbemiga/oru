@@ -30,6 +30,16 @@ export ledger clients: Map<Field, Bytes<32>>;
 export ledger freelancers: Map<Field, Bytes<32>>;
 export ledger detailCommitments: Map<Field, Bytes<32>>;
 export ledger budgetCommitments: Map<Field, Bytes<32>>;
+export ledger verifiedOnly: Map<Field, Boolean>;
+
+// Private allowlist access: freelancers who have completed at least one
+// order can join a public allowlist of "verified" identity hashes. Clients
+// can then gate an order to verified-only acceptance. Nothing about a
+// freelancer beyond the same pseudonymous identity hash used elsewhere is
+// ever disclosed — membership is proven from their own completed-order
+// count, a form of privately-computed reputation.
+export ledger completedCounts: Map<Bytes<32>, Uint<64>>;
+export ledger verifiedFreelancers: Set<Bytes<32>>;
 
 // Private state: each participant holds a local secret key that never
 // leaves their machine. Circuits derive a public identity from it.
@@ -44,37 +54,72 @@ circuit commitBudget(budget: Uint<64>, salt: Bytes<32>): Bytes<32> {
 }
 
 // A client posts a work order. The job details and budget are private
-// inputs; only their commitments are disclosed to the ledger.
-export circuit postOrder(detailsHash: Bytes<32>, budget: Uint<64>, budgetSalt: Bytes<32>): Field {
+// inputs; only their commitments are disclosed to the ledger. Setting
+// requireVerified gates acceptance to freelancers on the verified allowlist.
+export circuit postOrder(
+  detailsHash: Bytes<32>,
+  budget: Uint<64>,
+  budgetSalt: Bytes<32>,
+  requireVerified: Boolean
+): Field {
   const id = orderCount as Field;
   orderCount.increment(1);
   statuses.insert(id, OrderStatus.OPEN);
   clients.insert(id, disclose(identity()));
   detailCommitments.insert(id, disclose(detailsHash));
   budgetCommitments.insert(id, disclose(commitBudget(budget, budgetSalt)));
+  verifiedOnly.insert(id, disclose(requireVerified));
   return id;
 }
 
 // A freelancer accepts an open order. Their identity is a hash, so the
-// public ledger never links a wallet address to the engagement.
+// public ledger never links a wallet address to the engagement. If the
+// order requires a verified freelancer, the caller's identity hash must
+// already be a member of the verifiedFreelancers allowlist.
 export circuit acceptOrder(orderId: Field): [] {
   const id = disclose(orderId);
   assert(statuses.member(id), "Order does not exist");
   assert(statuses.lookup(id) == OrderStatus.OPEN, "Order is not open");
   const freelancer = identity();
   assert(!(clients.lookup(id) == freelancer), "Client cannot accept their own order");
+  if (verifiedOnly.lookup(id)) {
+    assert(
+      verifiedFreelancers.member(disclose(freelancer)),
+      "This order requires a verified freelancer — join the allowlist first"
+    );
+  }
   freelancers.insert(id, disclose(freelancer));
   statuses.insert(id, OrderStatus.ASSIGNED);
 }
 
 // Only the original client can mark an assigned order complete. The proof
 // of "I am the client" happens in-circuit against the stored identity hash.
+// Completing an order bumps the assigned freelancer's private completed-order
+// count, which is what later lets them join the verified allowlist.
 export circuit completeOrder(orderId: Field): [] {
   const id = disclose(orderId);
   assert(statuses.member(id), "Order does not exist");
   assert(statuses.lookup(id) == OrderStatus.ASSIGNED, "Order is not assigned");
   assert(clients.lookup(id) == identity(), "Only the client can complete an order");
   statuses.insert(id, OrderStatus.COMPLETED);
+  const freelancerHash = freelancers.lookup(id);
+  if (completedCounts.member(freelancerHash)) {
+    completedCounts.insert(freelancerHash, (completedCounts.lookup(freelancerHash) + 1) as Uint<64>);
+  } else {
+    completedCounts.insert(freelancerHash, 1);
+  }
+}
+
+// A freelancer joins the verified allowlist by proving — from their own
+// private completed-order count — that they have completed at least one
+// order. Nothing is disclosed beyond the same pseudonymous identity hash
+// already used everywhere else in the contract: no history, no counts, no
+// wallet address, just membership in a public set.
+export circuit joinAllowlist(): [] {
+  const freelancer = disclose(identity());
+  assert(completedCounts.member(freelancer), "You have not completed any orders yet");
+  assert(completedCounts.lookup(freelancer) >= 1, "You have not completed any orders yet");
+  verifiedFreelancers.insert(freelancer);
 }
 
 // Only the client can cancel, and only while the order is still open.

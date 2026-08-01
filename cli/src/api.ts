@@ -151,9 +151,15 @@ export const postOrder = async (
   contract: DeployedOruContract,
   details: string,
   budget: bigint,
+  requireVerified: boolean = false,
 ): Promise<PostedOrder> => {
   const budgetSalt = randomSalt();
-  const finalized = await contract.callTx.postOrder(hashDetails(details), budget, budgetSalt);
+  const finalized = await contract.callTx.postOrder(
+    hashDetails(details),
+    budget,
+    budgetSalt,
+    requireVerified,
+  );
   return {
     orderId: finalized.private.result,
     budgetSalt,
@@ -187,6 +193,17 @@ export const verifyBudget = async (
   return finalized.private.result;
 };
 
+/**
+ * Join the verified-freelancer allowlist. Requires having completed at
+ * least one order already — proven from the caller's own private
+ * completed-order count, never disclosing anything beyond the same
+ * pseudonymous identity hash used everywhere else in the contract.
+ */
+export const joinAllowlist = async (contract: DeployedOruContract) => {
+  const finalized = await contract.callTx.joinAllowlist();
+  return finalized.public;
+};
+
 /** Print the public order book: statuses and commitments only, never plaintext. */
 export const displayOrders = async (
   providers: OruProviders,
@@ -207,8 +224,9 @@ export const displayOrders = async (
     const client = toHex(state.clients.lookup(id)).slice(0, 16);
     const freelancer = state.freelancers.member(id) ? toHex(state.freelancers.lookup(id)).slice(0, 16) : '—';
     const detailsCommitment = toHex(state.detailCommitments.lookup(id)).slice(0, 16);
+    const verifiedOnly = state.verifiedOnly.member(id) && state.verifiedOnly.lookup(id);
     console.log(
-      `  #${id}  ${ORDER_STATUS_NAMES[status] ?? status}  client:${client}…  freelancer:${freelancer}${freelancer === '—' ? '' : '…'}  details:${detailsCommitment}…`,
+      `  #${id}  ${ORDER_STATUS_NAMES[status] ?? status}${verifiedOnly ? ' [verified-only]' : ''}  client:${client}…  freelancer:${freelancer}${freelancer === '—' ? '' : '…'}  details:${detailsCommitment}…`,
     );
   }
   console.log('');

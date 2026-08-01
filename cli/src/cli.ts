@@ -70,8 +70,9 @@ ${DIVIDER}
   [4] Complete an order        (client)
   [5] Cancel an order          (client)
   [6] Verify a budget commitment
-  [7] Monitor DUST balance
-  [8] Exit
+  [7] Join verified allowlist  (freelancer — after 1+ completed order)
+  [8] Monitor DUST balance
+  [9] Exit
 ${'─'.repeat(62)}
 > `;
 
@@ -228,8 +229,11 @@ const mainLoop = async (
           const details = await rli.question('Job details (kept private, only a hash goes on-chain): ');
           const budgetRaw = (await rli.question('Budget in tNight (kept private via commitment): ')).trim();
           const budget = BigInt(budgetRaw);
+          const requireVerified = /^y/i.test(
+            (await rli.question('Require a verified freelancer (allowlist-gated)? [y/N]: ')).trim(),
+          );
           const posted = await api.withStatus('Posting work order (generating ZK proof)', () =>
-            api.postOrder(contract, details, budget),
+            api.postOrder(contract, details, budget, requireVerified),
           );
           console.log(`
   Order #${posted.orderId} posted in block ${posted.blockHeight} (tx ${posted.txId.slice(0, 20)}…)
@@ -304,9 +308,19 @@ const mainLoop = async (
         }
         break;
       case '7':
-        await startDustMonitor(walletCtx.wallet, rli);
+        try {
+          const tx = await api.withStatus('Joining verified allowlist (generating ZK proof)', () =>
+            api.joinAllowlist(contract),
+          );
+          console.log(`  Joined the verified allowlist in block ${tx.blockHeight}\n`);
+        } catch (e) {
+          printErrorChain(e);
+        }
         break;
       case '8':
+        await startDustMonitor(walletCtx.wallet, rli);
+        break;
+      case '9':
         return;
       default:
         console.log(`  Invalid choice: ${choice}`);

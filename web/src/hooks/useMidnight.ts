@@ -1,7 +1,15 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { APIError } from '@midnight-ntwrk/dapp-connector-api';
 import { type ConnectedWallet, type NetworkProbeResult, type WalletBalances, connectWallet, detectWallets, pickPreferredWallet, configureConnectorProviders, probeWalletNetworks, fetchWalletBalances } from '../lib/wallet';
-import { createOruPrivateState, deriveOruSecretKey, joinOruContract, postOrder as postOrderTx, type PostedOrder } from '../lib/contract';
+import {
+  createOruPrivateState,
+  deriveOruSecretKey,
+  joinOruContract,
+  postOrder as postOrderTx,
+  joinAllowlist as joinAllowlistTx,
+  type PostedOrder,
+  type JoinedAllowlist,
+} from '../lib/contract';
 import type { OruProviders, DeployedOruContract } from '../lib/common-types';
 
 export type WalletStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -88,15 +96,30 @@ export function useMidnight(contractAddress: string) {
   }, []);
 
   const postOrder = useCallback(
-    async (details: string, budget: bigint): Promise<PostedOrder> => {
+    async (details: string, budget: bigint, requireVerified: boolean): Promise<PostedOrder> => {
       if (!state.contract) throw new Error('Not connected to the contract yet');
-      return postOrderTx(state.contract, details, budget);
+      return postOrderTx(state.contract, details, budget, requireVerified);
     },
     [state.contract],
   );
 
+  const joinAllowlist = useCallback(async (): Promise<JoinedAllowlist> => {
+    if (!state.contract) throw new Error('Not connected to the contract yet');
+    return joinAllowlistTx(state.contract);
+  }, [state.contract]);
+
   return useMemo(
-    () => ({ ...state, providers, networkProbe, balances, connect, disconnect, detectNetwork, postOrder }),
-    [state, providers, networkProbe, balances, connect, disconnect, detectNetwork, postOrder],
+    () => ({
+      ...state,
+      providers,
+      networkProbe,
+      balances,
+      connect,
+      disconnect,
+      detectNetwork,
+      postOrder,
+      joinAllowlist,
+    }),
+    [state, providers, networkProbe, balances, connect, disconnect, detectNetwork, postOrder, joinAllowlist],
   );
 }

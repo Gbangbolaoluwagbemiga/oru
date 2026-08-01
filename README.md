@@ -1,8 +1,10 @@
 # 🌙 Oru
 
+[![CI](https://github.com/Gbangbolaoluwagbemiga/oru/actions/workflows/ci.yml/badge.svg)](https://github.com/Gbangbolaoluwagbemiga/oru/actions/workflows/ci.yml)
+
 > A privacy-first freelance marketplace on [Midnight](https://midnight.network) — work orders whose details, budgets, and identities stay off the public ledger.
 
-Built for the **Monthly Moonshots on Midnight** builder program. Current level: **Level 2 — Waxing Crescent** 🌒
+Built for the **Monthly Moonshots on Midnight** builder program. Current level: **Level 3 — First Quarter** 🌓
 
 ## Live Demo
 
@@ -21,13 +23,16 @@ Requires a Lace wallet set to Preprod and a local Midnight proof server on `loca
 
 Oru is an on-chain registry for freelance work orders. A client posts a job; a freelancer accepts it; the client marks it complete (or cancels it while it's still open). The twist is *what the chain gets to see*: the public ledger stores only the order's lifecycle status and cryptographic commitments. The job description, the budget, and the real identities of both parties never appear on-chain — yet the contract still enforces the rules ("only the client can complete this order", "you can't accept your own job") inside zero-knowledge circuits, and any committed value can later be *proven* without being revealed.
 
-The Level 1 contract ([contract/src/oru.compact](contract/src/oru.compact)) has 5 circuits: `postOrder`, `acceptOrder`, `completeOrder`, `cancelOrder`, and `verifyBudget`.
+Level 3 adds **private allowlist access**: a client can mark an order "verified freelancers only," and only freelancers who have proven — from their own private completed-order count — that they've delivered at least one prior order may accept it. The proof discloses nothing beyond the same pseudonymous identity hash used everywhere else in the contract: no history, no counts, no wallet address.
+
+The contract ([contract/src/oru.compact](contract/src/oru.compact)) has 6 circuits: `postOrder`, `acceptOrder`, `completeOrder`, `cancelOrder`, `verifyBudget`, and `joinAllowlist`.
 
 ## Privacy Model
 
 - **What is PUBLIC (on-chain, visible to anyone):**
   - The order counter and each order's lifecycle status (`OPEN → ASSIGNED → COMPLETED/CANCELLED`)
   - Commitments only: a SHA-256 hash of the job details, a salted hash of the budget, and identity hashes for client/freelancer
+  - Whether an order is verified-only (`verifiedOnly`), each identity hash's completed-order count (`completedCounts`), and the set of identity hashes on the verified allowlist (`verifiedFreelancers`)
 - **What is PRIVATE (private witness, never on-chain):**
   - `localSecretKey` — each participant's 32-byte secret key, supplied at proof time by their own machine ([witnesses.ts](contract/src/witnesses.ts)) and used only *inside* the circuit
   - The plaintext job details, the budget amount, and the budget salt — these exist only on the client's device
@@ -35,6 +40,7 @@ The Level 1 contract ([contract/src/oru.compact](contract/src/oru.compact)) has 
   - *"I am this order's client"* — by re-deriving the identity hash from the secret key in-circuit (`completeOrder`/`cancelOrder`), with no signature or wallet address exposed
   - *"I am not the client"* — freelancers prove they aren't self-dealing when accepting (`acceptOrder`)
   - *"The budget I claim matches what was committed"* — `verifyBudget` checks a claimed amount + salt against the on-chain commitment without the ledger ever storing the amount
+  - *"I have completed at least one order"* — `joinAllowlist` checks the caller's own completed-order count in-circuit and, if it qualifies, discloses only their identity hash to the public allowlist — never the count itself, and never anything that would identify *which* prior order it came from
 
 ### Public state vs private witness
 
@@ -48,9 +54,9 @@ When you post a work order through the frontend, an on-chain observer (anyone qu
 
 - That *some* order was posted, its sequential id, and its lifecycle status (`OPEN`, `ASSIGNED`, `COMPLETED`, `CANCELLED`)
 - A SHA-256 commitment of the job details, and a salted commitment of the budget — both indistinguishable from random 32-byte values without the corresponding preimage
-- Identity hashes for the client and freelancer — never a wallet address, and unlinkable across orders without knowing the underlying secret key
+- Identity hashes for the client and freelancer — never a wallet address or real-world identity, and never derivable from the underlying secret key. The same freelancer *does* produce the same identity hash across their own orders (that's deliberate — it's what lets `completedCounts` and the verified allowlist work), but nothing ties that hash back to a person.
 
-What that same observer **cannot** see: the job title or description in plaintext, the budget amount, the budget salt, either party's wallet address, or either party's local secret key. The zero-knowledge proof generated for every circuit call — orchestrated in-browser and computed by a local Midnight proof server — attests that the poster correctly computed those commitments and satisfied the contract's rules — *without* transmitting the private inputs that went into that computation. The frontend enforces this at the UI level too: private inputs (job details, budget, salt) are only ever held in local component state and passed directly into the circuit call — they are never rendered, logged, or included in any displayed transaction result.
+What that same observer **cannot** see: the job title or description in plaintext, the budget amount, the budget salt, either party's wallet address, either party's local secret key, or (for verified-allowlist orders) anything about a freelancer's history beyond the bare fact that they qualified. The zero-knowledge proof generated for every circuit call — orchestrated in-browser and computed by a local Midnight proof server — attests that the poster correctly computed those commitments and satisfied the contract's rules — *without* transmitting the private inputs that went into that computation. The frontend enforces this at the UI level too: private inputs (job details, budget, salt) are only ever held in local component state and passed directly into the circuit call — they are never rendered, logged, or included in any displayed transaction result.
 
 ## Tech Stack
 
@@ -63,12 +69,12 @@ What that same observer **cannot** see: the job title or description in plaintex
 - **Node.js ≥ 22**, npm workspaces
 - **Docker** — local proof server (`midnightntwrk/proof-server`), used by the CLI only — the frontend proves via the wallet, no local proof server needed
 
-## Frontend (Level 2)
+## Frontend (Level 2 + 3)
 
 The [web/](web) package is a React + Vite dApp that connects to the deployed Preprod contract above through the Lace wallet's DApp Connector.
 
 - **Wallet connect/disconnect** — [WalletConnect.tsx](web/src/components/WalletConnect.tsx) detects injected wallets under `window.midnight`, connects, and surfaces connection errors (wallet not installed, request rejected, permission denied).
-- **Circuit call** — [CircuitCall.tsx](web/src/components/CircuitCall.tsx) posts a work order by calling `postOrder`. The job details and budget are captured in local component state, passed straight into the circuit call, and never rendered — only the returned order id, transaction id, and block height are shown, alongside a **"Proved without revealing your input"** label.
+- **Circuit call** — [CircuitCall.tsx](web/src/components/CircuitCall.tsx) posts a work order by calling `postOrder`, with an optional "require a verified freelancer" checkbox. The job details and budget are captured in local component state, passed straight into the circuit call, and never rendered — only the returned order id, transaction id, and block height are shown, alongside a **"Proved without revealing your input"** label. The same component exposes a **Join Allowlist** action that calls `joinAllowlist`, proving eligibility from a private completed-order count.
 - **Provider wiring** — [useMidnight.ts](web/src/hooks/useMidnight.ts) and [lib/wallet.ts](web/src/lib/wallet.ts) bridge the wallet's connector API to midnight-js's provider interfaces: proving is delegated to the wallet (`dappConnectorProofProvider`), the indexer is read from the wallet's own configuration (respecting the user's node/indexer preferences), and private state is kept in browser `IndexedDB` via `levelPrivateStateProvider`.
 
 Since the DApp Connector never exposes the wallet's seed to the page (by design), the browser derives its Oru marketplace secret key from the wallet's shielded coin public key instead of the raw seed the CLI uses — see [lib/contract.ts](web/src/lib/contract.ts#L23).
@@ -97,8 +103,26 @@ npm run build        # build both packages
 ## Run Tests
 
 ```sh
-npm test             # 10 simulator-based tests covering the full order lifecycle
+npm test             # 14 simulator-based tests covering the full order lifecycle + the verified allowlist
 ```
+
+## CI/CD
+
+Every push to `main` and every pull request runs [.github/workflows/ci.yml](.github/workflows/ci.yml) on `ubuntu-latest`:
+
+1. Checks out the repo and sets up Node.js 22.
+2. Installs the Compact developer tools and pins the compiler to `0.31.1`.
+3. `npm ci` — installs dependencies from the committed lockfile.
+4. `npm run compact` — compiles [oru.compact](contract/src/oru.compact) into ZK circuits, prover/verifier keys, and the generated TypeScript contract API.
+5. `npm run build` — builds the `contract`, `cli`, and `web` workspaces.
+6. `npm run typecheck` — strict TypeScript checks across all workspaces.
+7. `npm test` — runs the full simulator test suite.
+
+A red CI badge above means the contract doesn't compile, the workspaces don't build, or a test regressed — the same checks anyone cloning this repo would hit locally.
+
+## Product Proposal
+
+See [PROPOSAL.md](PROPOSAL.md) for what Oru is, why it needs Midnight specifically, its public/private data model, and a Mainnet feasibility assessment.
 
 ## Run the Frontend Locally
 
@@ -145,7 +169,7 @@ Or on Netlify, point the build command at `npm run build --workspace @oru/contra
 
 ```
 contract/            Compact contract + TypeScript witness bindings
-  src/oru.compact          The contract (5 circuits)
+  src/oru.compact          The contract (6 circuits)
   src/witnesses.ts         Private witness (local secret key)
   src/managed/             Generated: ZK circuits, prover/verifier keys, TS API
   src/test/                Simulator-based unit tests (vitest)
@@ -186,8 +210,8 @@ Recording checklist: connect Lace wallet (address appears on screen) → call `p
 ## Roadmap (lunar cycle)
 
 - 🌑 **Level 1 — New Moon:** toolchain, first contract, Preprod deployment ✅
-- 🌒 **Level 2 — Waxing Crescent:** React frontend + Lace wallet connection ← *you are here*
-- 🌓 **Level 3 — First Quarter:** polished dApp, CI/CD, private escrow, program problem statement
+- 🌒 **Level 2 — Waxing Crescent:** React frontend + Lace wallet connection ✅
+- 🌓 **Level 3 — First Quarter:** tests, CI/CD, private allowlist access ← *you are here*
 - 🌔 **Level 4 — Waxing Gibbous:** MVP live on Preprod with docs + public profile
 - 🌕 **Level 5 — Full Moon:** feedback loop, 50 Preprod users
 - 🌝 **Level 6 — Supermoon:** Mainnet launch, 20 real users

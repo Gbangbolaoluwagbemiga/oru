@@ -1,18 +1,26 @@
 import { useState, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import type { PostedOrder } from '../lib/contract';
+import type { JoinedAllowlist, PostedOrder } from '../lib/contract';
 
 interface CircuitCallProps {
   connected: boolean;
-  onPostOrder: (details: string, budget: bigint) => Promise<PostedOrder>;
+  onPostOrder: (details: string, budget: bigint, requireVerified: boolean) => Promise<PostedOrder>;
+  onJoinAllowlist: () => Promise<JoinedAllowlist>;
 }
 
 type CallState = { phase: 'idle' } | { phase: 'proving' } | { phase: 'done'; result: PostedOrder } | { phase: 'error'; message: string };
+type AllowlistState =
+  | { phase: 'idle' }
+  | { phase: 'joining' }
+  | { phase: 'done'; result: JoinedAllowlist }
+  | { phase: 'error'; message: string };
 
-export function CircuitCall({ connected, onPostOrder }: CircuitCallProps) {
+export function CircuitCall({ connected, onPostOrder, onJoinAllowlist }: CircuitCallProps) {
   const [details, setDetails] = useState('');
   const [budget, setBudget] = useState('');
+  const [requireVerified, setRequireVerified] = useState(false);
   const [call, setCall] = useState<CallState>({ phase: 'idle' });
+  const [allowlist, setAllowlist] = useState<AllowlistState>({ phase: 'idle' });
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -23,12 +31,27 @@ export function CircuitCall({ connected, onPostOrder }: CircuitCallProps) {
       // `details` and `budget` are passed straight into the circuit call —
       // they are never rendered anywhere in this UI, only their on-chain
       // commitments (returned inside `result`) are.
-      const result = await onPostOrder(details, BigInt(budget));
+      const result = await onPostOrder(details, BigInt(budget), requireVerified);
       setCall({ phase: 'done', result });
       setDetails('');
       setBudget('');
+      setRequireVerified(false);
     } catch (err) {
       setCall({ phase: 'error', message: err instanceof Error ? err.message : 'Circuit call failed' });
+    }
+  };
+
+  const handleJoinAllowlist = async () => {
+    if (!connected || allowlist.phase === 'joining') return;
+    setAllowlist({ phase: 'joining' });
+    try {
+      const result = await onJoinAllowlist();
+      setAllowlist({ phase: 'done', result });
+    } catch (err) {
+      setAllowlist({
+        phase: 'error',
+        message: err instanceof Error ? err.message : 'Circuit call failed',
+      });
     }
   };
 
@@ -56,6 +79,15 @@ export function CircuitCall({ connected, onPostOrder }: CircuitCallProps) {
             disabled={!connected || call.phase === 'proving'}
             required
           />
+        </label>
+        <label className="circuit-call__checkbox">
+          <input
+            type="checkbox"
+            checked={requireVerified}
+            onChange={(e) => setRequireVerified(e.target.checked)}
+            disabled={!connected || call.phase === 'proving'}
+          />
+          Require a verified freelancer (allowlist-gated)
         </label>
         <motion.button
           type="submit"
@@ -138,6 +170,53 @@ export function CircuitCall({ connected, onPostOrder }: CircuitCallProps) {
           </motion.p>
         )}
       </AnimatePresence>
+
+      <div className="circuit-call__allowlist">
+        <div className="circuit-call__allowlist-row">
+          <div>
+            <h3>Verified Allowlist</h3>
+            <p className="circuit-call__hint circuit-call__hint--tight">
+              After completing at least one order, join the allowlist to accept orders marked "verified freelancers
+              only" — proven from your own private completed-order count, without revealing it.
+            </p>
+          </div>
+          <motion.button
+            type="button"
+            className="ghost"
+            onClick={handleJoinAllowlist}
+            disabled={!connected || allowlist.phase === 'joining'}
+            whileHover={{ scale: connected && allowlist.phase !== 'joining' ? 1.02 : 1 }}
+            whileTap={{ scale: connected && allowlist.phase !== 'joining' ? 0.98 : 1 }}
+          >
+            {allowlist.phase === 'joining' ? 'Generating proof…' : 'Join Allowlist'}
+          </motion.button>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {allowlist.phase === 'done' && (
+            <motion.p
+              key="allowlist-done"
+              className="circuit-call__allowlist-status circuit-call__allowlist-status--good"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              ✓ Joined the allowlist in block {allowlist.result.blockHeight}
+            </motion.p>
+          )}
+          {allowlist.phase === 'error' && (
+            <motion.p
+              key="allowlist-error"
+              className="circuit-call__allowlist-status circuit-call__error"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              {allowlist.message}
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

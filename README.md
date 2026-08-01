@@ -205,7 +205,7 @@ Compile output (text capture): [docs/compile-output.txt](docs/compile-output.txt
 
 **[Watch on Loom](https://www.loom.com/share/1f8b2270477e4a34a2a049f2e78c38e9)**
 
-Recording checklist: connect Lace wallet (address appears on screen) → call `postOrder` (show the proof-generation loading state) → show the on-chain result (order id, transaction id) → point out the private input was never shown. Full checklist in [docs/SUBMISSION-LEVEL2.md](docs/SUBMISSION-LEVEL2.md#demo-video-checklist-under-2-minutes).
+Recording checklist: connect Lace wallet → post a verified-only order and show an unverified freelancer's accept get rejected → complete an ordinary order, call `joinAllowlist`, then accept the gated order successfully → terminal showing `npm test` (14 passing) → README with the green CI badge. Full checklist in [docs/SUBMISSION-LEVEL3.md](docs/SUBMISSION-LEVEL3.md#demo-video-checklist).
 
 ## Roadmap (lunar cycle)
 

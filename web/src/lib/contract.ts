@@ -78,16 +78,33 @@ export const postOrder = async (
   contract: DeployedOruContract,
   details: string,
   budget: bigint,
+  requireVerified: boolean = false,
 ): Promise<PostedOrder> => {
   const budgetSalt = randomSalt();
   const detailsHash = await hashDetails(details);
-  const finalized = await contract.callTx.postOrder(detailsHash, budget, budgetSalt);
+  const finalized = await contract.callTx.postOrder(detailsHash, budget, budgetSalt, requireVerified);
   return {
     orderId: finalized.private.result,
     budgetSalt,
     txId: finalized.public.txId,
     blockHeight: finalized.public.blockHeight,
   };
+};
+
+export interface JoinedAllowlist {
+  txId: string;
+  blockHeight: number;
+}
+
+/**
+ * Join the verified-freelancer allowlist. Requires having completed at
+ * least one order already — proven from the caller's own private
+ * completed-order count, never disclosing anything beyond the same
+ * pseudonymous identity hash used everywhere else in the contract.
+ */
+export const joinAllowlist = async (contract: DeployedOruContract): Promise<JoinedAllowlist> => {
+  const finalized = await contract.callTx.joinAllowlist();
+  return { txId: finalized.public.txId, blockHeight: finalized.public.blockHeight };
 };
 
 export { createOruPrivateState };

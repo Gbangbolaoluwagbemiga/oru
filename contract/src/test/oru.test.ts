@@ -156,4 +156,59 @@ describe("Oru work-order contract", () => {
     expect(sim.verifyBudget(id, 501n, budgetSalt)).toBe(false);
     expect(sim.verifyBudget(id, budget, new Uint8Array(32).fill(1))).toBe(false);
   });
+
+  describe("Private allowlist access", () => {
+    it("rejects an unverified freelancer accepting a verified-only order", () => {
+      const sim = new OruSimulator();
+      const id = sim.as(CLIENT).postOrder(detailsHash, budget, budgetSalt, true);
+      expect(() => sim.as(FREELANCER).acceptOrder(id)).toThrow(
+        /requires a verified freelancer/
+      );
+    });
+
+    it("rejects joining the allowlist before completing any order", () => {
+      const sim = new OruSimulator();
+      expect(() => sim.as(FREELANCER).joinAllowlist()).toThrow(
+        /have not completed any orders/
+      );
+    });
+
+    it("lets a freelancer join the allowlist after completing an order, then accept a verified-only order", () => {
+      const sim = new OruSimulator();
+
+      // Complete one ordinary order first, to earn a completed-order count.
+      const firstId = sim.as(CLIENT).postOrder(detailsHash, budget, budgetSalt, false);
+      sim.as(FREELANCER).acceptOrder(firstId);
+      const freelancerHash = sim.getLedger().freelancers.lookup(firstId);
+      sim.as(CLIENT).completeOrder(firstId);
+      expect(sim.getLedger().completedCounts.lookup(freelancerHash)).toEqual(1n);
+
+      // Not yet on the allowlist.
+      expect(sim.getLedger().verifiedFreelancers.member(freelancerHash)).toBe(false);
+
+      sim.as(FREELANCER).joinAllowlist();
+      expect(sim.getLedger().verifiedFreelancers.member(freelancerHash)).toBe(true);
+
+      // Now the same freelancer can accept a verified-only order.
+      const gatedId = sim.as(CLIENT).postOrder(detailsHash, budget, budgetSalt, true);
+      sim.as(FREELANCER).acceptOrder(gatedId);
+      expect(sim.getLedger().statuses.lookup(gatedId)).toEqual(OrderStatus.ASSIGNED);
+      expect(sim.getLedger().freelancers.lookup(gatedId)).toEqual(freelancerHash);
+    });
+
+    it("never exposes a freelancer's raw secret key via the allowlist or completed-order ledger state", () => {
+      const sim = new OruSimulator();
+      const firstId = sim.as(CLIENT).postOrder(detailsHash, budget, budgetSalt, false);
+      sim.as(FREELANCER).acceptOrder(firstId);
+      const freelancerHash = sim.getLedger().freelancers.lookup(firstId);
+      sim.as(CLIENT).completeOrder(firstId);
+      sim.as(FREELANCER).joinAllowlist();
+
+      const state = sim.getLedger();
+      // Keyed by the identity hash, never the raw secret key.
+      expect(state.verifiedFreelancers.member(freelancerHash)).toBe(true);
+      expect(state.verifiedFreelancers.member(FREELANCER)).toBe(false);
+      expect(state.completedCounts.member(FREELANCER)).toBe(false);
+    });
+  });
 });

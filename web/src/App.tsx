@@ -11,7 +11,8 @@ const fadeUp = {
 };
 
 function App() {
-  const { status, wallet, contract, error, networkProbe, balances, connect, disconnect, detectNetwork, postOrder } = useMidnight(CONTRACT_ADDRESS);
+  const { status, wallet, contract, error, networkProbe, balances, connect, disconnect, detectNetwork, postOrder, joinAllowlist } =
+    useMidnight(CONTRACT_ADDRESS);
 
   return (
     <>
@@ -38,7 +39,11 @@ function App() {
         </motion.section>
 
         <motion.div className="card" variants={fadeUp} transition={{ duration: 0.5 }}>
-          <CircuitCall connected={status === 'connected' && !!contract} onPostOrder={postOrder} />
+          <CircuitCall
+            connected={status === 'connected' && !!contract}
+            onPostOrder={postOrder}
+            onJoinAllowlist={joinAllowlist}
+          />
         </motion.div>
       </motion.main>
     </>
